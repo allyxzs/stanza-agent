@@ -1,43 +1,40 @@
-# Stanza v0.1 — ARA OS 12
+# Stanza v0.2 — ARA OS 12
 
-Protótipo funcional de inteligência documental **local**, sem necessidade de chave de API.
+Agente Python para análise documental com API FastAPI. Suporta PDF com texto selecionável, DOCX e TXT. Processa documentos localmente e permite indexar, pesquisar e localizar evidências por página.
 
-## Iniciar
-
-Requer Python 3.10+ (recomendado 3.12).
+## Instalação no Kali Linux
 
 ```bash
-python -m venv .venv
-# Linux/macOS:
+python3 -m venv .venv
 source .venv/bin/activate
-# Windows PowerShell:
-# .venv\\Scripts\\Activate.ps1
 pip install -r requirements.txt
-uvicorn stanza.main:app --reload
+python -m pytest -q
+uvicorn stanza.main:app --host 127.0.0.1 --port 8000
 ```
 
-Acesse http://127.0.0.1:8000/docs para testar upload e comparação.
+Abra http://127.0.0.1:8000/docs.
 
-## Testar
+## Endpoints
 
-```bash
-pytest -q
-```
+- `GET /health`: estado do serviço.
+- `POST /analisar`: upload de PDF, DOCX ou TXT; classificação, extração e resumo extrativo.
+- `POST /comparar`: comparação textual entre arquivos.
+- `POST /documentos`: upload e indexação em SQLite.
+- `GET /documentos`: lista de documentos indexados.
+- `GET /documentos/{id}`: metadados e análise.
+- `POST /pesquisar`: pesquisa lexical nos documentos indexados.
+- `POST /perguntar`: resposta conservadora baseada em trechos encontrados.
 
-## Exemplos
+Para `/pesquisar` e `/perguntar`, envie JSON como `{"pergunta":"Qual é o valor do contrato?"}`. Pode incluir `documento_id` retornado em `/documentos`.
 
-```bash
-curl -F 'arquivo=@contrato.pdf' 'http://127.0.0.1:8000/analisar?frases=5'
-curl -F 'original=@antigo.docx' -F 'atualizado=@novo.docx' http://127.0.0.1:8000/comparar
-```
+## Limitações e segurança
 
-## Limites e segurança
+- Esta versão **não** integra um LLM e **não** executa OCR; PDFs escaneados sem camada de texto não são suportados.
+- A pesquisa é lexical, não semântica; as respostas retornam evidências, não interpretações geradas por IA.
+- Arquivos são limitados a 15 MB; não há autenticação na API. Mantenha o servidor em `127.0.0.1`, nunca exponha diretamente à internet.
+- Conteúdo indexado é armazenado em SQLite local, em `~/.stanza/documents.sqlite3` (configurável por `STANZA_DB_PATH`). Proteja o banco caso os documentos sejam confidenciais.
+- Não envie documentos pessoais sem verificar permissões e requisitos de privacidade.
 
-- PDF, DOCX e TXT até 15 MB. Não há OCR para PDFs escaneados.
-- Classificação por palavras-chave e resumo **extrativo**: não é um LLM e não garante interpretação jurídica ou precisão semântica.
-- Não salva nem altera arquivos enviados; uploads são processados em memória.
-- Não possui autenticação, rate limiting ou armazenamento persistente. **Não exponha na internet sem adicionar essas proteções.**
-- CNPJ é reconhecido pelo formato, não validado pelo dígito verificador.
-- Diferenças são textuais, não estruturais ou visuais.
+## Atualização do GitHub
 
-<img width="1024" height="433" alt="stanzaag" src="https://github.com/user-attachments/assets/abd462aa-6eed-44ba-9782-f2e05e6f6f94" />
+Copie o conteúdo desta versão sobre a pasta do repositório, preservando `.git/` e `.venv/`, depois execute `git add . && git commit -m "Stanza v0.2" && git push origin main`.
