@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stanza • ARA OS 12</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0f1a;--panel:#131a28;--border:#26354b;--text:#eef2fc;--mute:#aab9cf;--accent:#82aaff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 10% -20%,#203457 0%,transparent 55%),var(--bg);color:var(--text);font:15px/1.55 system-ui,Arial,sans-serif}
+main{width:min(1100px,95%);margin:40px auto 80px}header{display:flex;align-items:center;gap:16px;margin-bottom:28px}.mark{border:1px solid var(--border);border-radius:15px;background:#253b60;padding:13px;font-weight:900;font-size:22px}h1{font-size:28px;margin:0}h2{font-size:17px;margin:0 0 14px}p{color:var(--mute);margin:2px 0 0}.layout{display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{border:1px solid var(--border);border-radius:16px;background:var(--panel);padding:22px;min-width:0}.wide{grid-column:1/-1}label{display:block;margin:8px 0;color:var(--mute);font-size:13px}input,select,textarea{display:block;width:100%;background:#0d1421;border:1px solid #394965;color:var(--text);border-radius:9px;padding:11px;margin:7px 0 14px;font:inherit}input[type=file]{padding:12px}textarea{min-height:100px}button{border:0;border-radius:10px;background:var(--accent);color:#07111f;padding:11px 18px;font-weight:700;cursor:pointer}button:hover{filter:brightness(1.12)}button:disabled{opacity:.5;cursor:wait}.muted{color:var(--mute)}.small{font-size:13px}.status{margin-top:12px;color:#b7e1c5}.error{color:#ffaaaa}.item{margin:10px 0;padding:12px;border:1px solid var(--border);background:#101827;border-radius:10px;overflow-wrap:anywhere}.item strong{display:block;margin-bottom:5px}pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;color:#cbd5ee}.badge{border:1px solid #3c5373;color:#bed3ff;border-radius:6px;font-size:11px;padding:3px 7px}#results{min-height:100px}footer{font-size:12px;color:var(--mute);margin-top:18px}@media(max-width:720px){.layout{grid-template-columns:1fr}.wide{grid-column:auto}}
+</style>
+</head>
+<body>
+<main>
+<header><div class="mark">S</div><div><h1>STANZA <span class="badge">v0.3</span></h1><p>Inteligência documental · ARA OS 12</p></div></header>
+<section class="layout">
+<div class="panel"><h2>1. Adicionar documento</h2><p class="small">PDF, DOCX ou TXT · até 15 MB · OCR automático em PDFs sem texto</p>
+<form id="uploadForm"><label for="file">Selecione um arquivo</label><input id="file" type="file" accept=".pdf,.docx,.txt" required><button type="submit">Indexar documento</button></form><div id="uploadResult" class="status" role="status"></div></div>
+<div class="panel"><h2>2. Consultar documentos</h2><p class="small">Pesquisa local gratuita; IA opcional quando configurada.</p>
+<form id="askForm"><label for="question">Sua pergunta</label><textarea id="question" required minlength="3" maxlength="1000" placeholder="Qual é o valor total do contrato?"></textarea>
+<label for="doc">Documento</label><select id="doc"><option value="">Todos os documentos</option></select>
+<label for="method">Modo</label><select id="method"><option value="search">Busca avançada (local)</option><option value="ai">Resposta com IA (requer API configurada)</option></select>
+<button type="submit">Consultar</button></form></div>
+<div class="panel wide"><h2>Resultados e fontes</h2><div id="results"><p>Envie um documento e faça uma pergunta para começar.</p></div></div>
+</section><footer>Serviço local sem login. Não exponha o Stanza diretamente à internet. IA externa envia trechos selecionados para o provedor configurado.</footer>
+</main>
+<script>
+const $=x=>document.getElementById(x);
+function node(tag,text='',className=''){const e=document.createElement(tag);e.textContent=text;if(className)e.className=className;return e}
+async function request(url,options){const r=await fetch(url,options);let data;try{data=await r.json()}catch{throw Error('Falha ao ler resposta do servidor')};if(!r.ok)throw Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail||data));return data}
+async function refreshDocuments(){try{const docs=await request('/documentos');const select=$('doc');const current=select.value;select.replaceChildren(new Option('Todos os documentos',''));for(const d of docs){select.add(new Option(d.arquivo+' · '+d.id.slice(0,8),d.id))}select.value=current}catch(e){$('uploadResult').textContent='Não foi possível listar documentos: '+e.message}}
+$('uploadForm').addEventListener('submit',async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;const display=$('uploadResult');display.className='status';display.textContent='Indexando documento...';try{const form=new FormData();form.append('arquivo',$('file').files[0]);const result=await request('/documentos',{method:'POST',body:form});display.textContent='Indexado: '+result.analise.arquivo+' · '+result.analise.paginas+' página(s) · Categoria: '+result.analise.classificacao.categoria;await refreshDocuments();$('doc').value=result.id}catch(err){display.textContent=err.message;display.className='status error'}finally{btn.disabled=false}});
+$('askForm').addEventListener('submit',async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;const view=$('results');view.replaceChildren(node('p','Pesquisando...'));const question=$('question').value;const id=$('doc').value;const body=JSON.stringify({pergunta:question,documento_id:id||null});try{const ai=$('method').value==='ai';const r=await request(ai?'/responder-ia':'/busca-avancada',{method:'POST',headers:{'Content-Type':'application/json'},body});view.replaceChildren();if(ai)view.append(node('p',r.resposta));const results=ai?r.fontes:r.resultados;view.append(node('p','Método: '+(r.metodo_busca||r.metodo)+' · '+results.length+' fonte(s)','muted small'));if(!results.length)view.append(node('p','Nenhum trecho correspondente encontrado.'));for(let i=0;i<results.length;i++){const hit=results[i];const item=node('div','','item');item.append(node('strong','[FONTE '+(i+1)+'] '+hit.arquivo+' · página '+hit.pagina));item.append(node('pre',hit.trecho));view.append(item)}}catch(err){view.replaceChildren(node('p',err.message,'error'))}finally{btn.disabled=false}});
+refreshDocuments();
+</script>
+</body>
+</html>
