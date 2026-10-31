@@ -23,7 +23,7 @@ def test_ui_and_health(monkeypatch):
     assert client.get('/').status_code == 200
     assert 'STANZA' in client.get('/').text
     health = client.get('/health').json()
-    assert health['versao'] == '0.3.0'
+    assert health['versao'] == '0.4.0'
     assert health['ia_configurada'] is False
 
 
