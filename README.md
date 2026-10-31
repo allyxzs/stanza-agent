@@ -39,3 +39,5 @@ curl -F 'original=@antigo.docx' -F 'atualizado=@novo.docx' http://127.0.0.1:8000
 - Não possui autenticação, rate limiting ou armazenamento persistente. **Não exponha na internet sem adicionar essas proteções.**
 - CNPJ é reconhecido pelo formato, não validado pelo dígito verificador.
 - Diferenças são textuais, não estruturais ou visuais.
+
+<img width="1024" height="433" alt="stanzaag" src="https://github.com/user-attachments/assets/abd462aa-6eed-44ba-9782-f2e05e6f6f94" />
