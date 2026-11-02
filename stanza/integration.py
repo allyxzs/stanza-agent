@@ -1,24 +1,29 @@
-"""Contrato mínimo de integração do Stanza com outros agentes ARA OS 12.
-
-Eventos ficam APENAS no SQLite local; não são publicados na rede.
-"""
+"""Contrato local de integração do Stanza com os demais agentes ARA OS 12."""
 from __future__ import annotations
 
 import json
+import os
 from . import advanced
 
-VERSION = '0.4.0'
-EVENTS = ('document.indexed', 'document.organized', 'contract.reviewed')
+VERSION = '0.5.0'
+EVENTS = (
+    'document.indexed', 'document.organized', 'contract.reviewed',
+    'workflow.completed', 'workflow.failed', 'agent.workflow.requested',
+)
 
 
 def manifest() -> dict:
     return {
         'agente': 'Stanza', 'sistema': 'ARA OS 12', 'versao': VERSION,
-        'transporte': 'consulta_local_api', 'autenticacao': 'nenhuma (apenas localhost)',
+        'transporte': 'api_http_local',
+        'autenticacao': 'token_compartilhado_obrigatorio_nas_rotas_de_agente',
+        'token_configurado': bool(os.getenv('STANZA_INTEGRATION_TOKEN', '').strip()),
         'eventos': list(EVENTS),
-        'rotas': ['/integracao/manifesto', '/integracao/eventos'],
-        'observacao': 'Ainda não envia eventos automaticamente a outros agentes; '
-                      'fornece histórico local para integração futura.'
+        'rotas': [
+            '/integracao/manifesto', '/integracao/eventos',
+            '/integracao/tarefas', '/integracao/tarefas/{task_id}',
+        ],
+        'observacao': 'A integração é iniciada pelo agente cliente; não há webhooks nem chamadas automáticas para outros agentes.',
     }
 
 
@@ -34,7 +39,6 @@ def _ensure_table(db):
 def record(event_name: str, payload: dict) -> None:
     if event_name not in EVENTS:
         raise ValueError('Evento não suportado.')
-    # Não aceita payloads enormes nem texto integral dos documentos.
     serialized = json.dumps(payload, ensure_ascii=False)
     if len(serialized) > 6000:
         raise ValueError('Evento muito grande.')

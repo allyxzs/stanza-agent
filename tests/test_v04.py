@@ -18,7 +18,7 @@ def isolated(tmp_path, monkeypatch):
 
 
 def test_health_and_legacy(isolated):
-    assert client.get('/health').json()['versao'] == '0.4.0'
+    assert client.get('/health').json()['versao'] == '0.5.0'
     r = client.post('/analisar', files={'arquivo': ('a.txt', b'Contrato. Contratante e contratada. Valor R$ 500,00.')})
     assert r.status_code == 200
     assert r.json()['classificacao']['categoria'] == 'contrato'
@@ -184,5 +184,5 @@ def test_organizer_multiple_same_names_different_content(isolated, monkeypatch):
 def test_web_panel_v04(isolated):
     response = client.get('/')
     assert response.status_code == 200
-    for name in ['STANZA', 'v0.4', 'Duplicatas', 'Revisão contratual', 'Organizar arquivos']:
+    for name in ['STANZA', 'v0.5', 'Duplicatas', 'Revisão contratual', 'Organizar arquivos', 'Fluxos e tarefas']:
         assert name in response.text

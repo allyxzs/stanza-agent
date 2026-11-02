@@ -1,181 +1,223 @@
-# STANZA v0.4 — Agente de Inteligência Documental do ARA OS 12
+# STANZA v0.5 — Agente de Inteligência Documental do ARA OS 12
 
-**Projeto Python executável.** A v0.4 evolui diretamente da v0.3, mantém o painel e todos os endpoints anteriores e preserva o banco SQLite existente. Não requer chave de IA para classificação, OCR local, duplicatas, organização nem análise heurística de cláusulas.
+**Stanza** é um agente Python para leitura, classificação, pesquisa e automação supervisionada de tarefas documentais. A v0.5 preserva as funcionalidades da v0.4 e acrescenta um motor local de fluxos com histórico persistente e um gateway autenticado para solicitações de outros agentes do ARA OS 12.
 
-> **Limites:** não é um serviço multiusuário nem um parecer jurídico. A API não tem autenticação: execute **somente em `127.0.0.1`**. Não publique a porta 8000 na internet. Dados de documentos ficam no SQLite local; IA externa, quando habilitada, envia trechos selecionados à API configurada.
+## Novidades da v0.5
 
-## Novidades da v0.4
+1. **Motor de fluxos documentais:** quatro fluxos prontos — resumo e extração, revisão documental de contrato, pesquisa fundamentada e comparação de versões.
+2. **Histórico persistente:** cada execução recebe um identificador, status, parâmetros, resultado, mensagem de erro resumida e horários. O histórico fica no SQLite existente, em uma tabela nova `workflow_tasks`.
+3. **Relatório exportável:** cada tarefa pode ser exportada em Markdown.
+4. **Gateway ARA OS 12:** outros agentes podem solicitar um fluxo e consultar seu resultado usando o cabeçalho `X-Stanza-Token`. O token é configurado pelo administrador e nunca é retornado pela API.
+5. **Eventos de integração:** solicitações, conclusões e falhas são registradas no histórico local.
+6. **Painel web:** permite executar os fluxos e consultar as tarefas recentes.
 
-1. **Organização segura de arquivos** — uma prévia (sem alterações) com classificação por tipo e ano, seguida de confirmação explícita. Copia arquivos de `entrada/` para `organizados/categoria/ano/`; **nunca exclui, move, nem sobrescreve os originais**. Bloqueia symlinks e verifica SHA-256 antes de aplicar. Por segurança, a pasta autorizada deve ser configurada pelo administrador via variável de ambiente.
-2. **Detecção de duplicatas** — identifica reenvios idênticos por SHA-256, registra eventos de novas importações na v0.4 e compara similaridade textual aproximada entre documentos distintos. Não exclui arquivos nem decide automaticamente que documentos semelhantes são equivalentes.
-3. **Análise de cláusulas contratuais** — localiza títulos de cláusulas, identifica temas como pagamento, rescisão e confidencialidade e marca trechos que merecem revisão humana, sempre mostrando página e evidência. Regras heurísticas podem perder cláusulas ou produzir falsos positivos.
-4. **Integração inicial com ARA OS 12** — manifesto de capacidades e log de eventos somente no SQLite local (`document.indexed`, `document.organized`, `contract.reviewed`). **Ainda não há comunicação automática com outros agentes**.
-5. **Painel web atualizado** — interface para indexar, pesquisar, listar duplicatas, analisar cláusulas, pré-visualizar/copiar arquivos e consultar eventos locais.
+**Importante:** a execução dos fluxos nesta versão é síncrona e local; ainda não existe fila distribuída, execução em segundo plano, webhook ou comunicação automática de saída com outros agentes. O agente cliente inicia a solicitação HTTP. Os endpoints locais antigos continuam disponíveis.
 
-Continuam disponíveis: leitura PDF/DOCX/TXT, OCR Tesseract (com limites), classificação e extração, resumos extrativos, comparação, busca lexical/semântica opcional e respostas com IA externa opcional.
+## Fluxos disponíveis
+
+| ID | Entrada | Resultado |
+|---|---|---|
+| `resumo_documento` | `documento_id` | Classificação, dados extraídos e resumo extrativo |
+| `revisao_contrato` | `documento_id` | Cláusulas, temas e sinais para revisão humana com evidências |
+| `pesquisa_documental` | `pergunta`, `documento_id` opcional, `modo_busca` | Trechos relevantes com arquivo, página e pontuação |
+| `comparacao_documental` | `documento_id`, `documento_id_b` | Diferenças textuais entre dois documentos indexados |
+
+Os documentos devem ser indexados antes da execução. O identificador é o SHA-256 retornado por `POST /documentos`.
 
 ## Instalação no Kali Linux
+
+Dependências de sistema (OCR opcional, mas recomendado se trabalhar com PDFs digitalizados):
 
 ```bash
 sudo apt update
 sudo apt install -y python3 python3-venv python3-pip unzip tesseract-ocr tesseract-ocr-por tesseract-ocr-eng
-cd ~/Downloads/stanza_agent
-python3 -m venv .venv  # somente se ainda não existir
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-python -m pytest -q
-uvicorn stanza.main:app --host 127.0.0.1 --port 8000
 ```
 
-Navegador: **http://127.0.0.1:8000/**. API interativa: **http://127.0.0.1:8000/docs**.
-
-## Atualizar do Stanza v0.3 sem perder Git e banco
-
-Antes de fazer alterações, confirme se não há rebase ativo (`git status`) e sincronize com o remoto quando seu diretório estiver limpo (`git pull --rebase origin main`). **Se houver conflitos, resolva-os antes de continuar**.
-
-Faça backup do repositório e, se houver, do banco SQLite. No Linux, o banco padrão fica em `~/.stanza/documents.sqlite3`; com SQLite em WAL, pare o servidor antes de copiar o banco.
-
-Baixe `stanza_agent_v0.4.zip` para `~/Downloads`. Em seguida:
+Extraia o ZIP e entre na pasta do projeto:
 
 ```bash
 cd ~/Downloads
-unzip -o stanza_agent_v0.4.zip -d stanza_v04
-# Copie SOMENTE o código e os arquivos de configuração/documentação.
-cp -r stanza_v04/stanza stanza_v04/tests stanza_agent/
-cp stanza_v04/README.md stanza_v04/CHANGELOG.md stanza_v04/requirements.txt \
-   stanza_v04/requirements-semantic.txt stanza_v04/.gitignore stanza_v04/.env.example stanza_agent/
-cd stanza_agent
+unzip stanza_agent_v0.5.zip -d stanza_v05
+cd stanza_v05
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m pytest -q
+uvicorn stanza.main:app --host 127.0.0.1 --port 8000
+```
+
+Painel: **http://127.0.0.1:8000/**  
+Documentação da API: **http://127.0.0.1:8000/docs**  
+Saúde: **http://127.0.0.1:8000/health**
+
+## Atualizar uma instalação existente da v0.4
+
+Faça backup do projeto e do banco antes de atualizar. O servidor deve estar parado durante o backup/cópia do banco SQLite.
+
+```bash
+cd ~/Downloads
+unzip stanza_agent_v0.5.zip -d stanza_v05
+```
+
+Copie somente código, testes e arquivos de projeto para a pasta já clonada do GitHub. Exemplo, se ela estiver em `~/Downloads/stanza_agent`:
+
+```bash
+cp -r ~/Downloads/stanza_v05/stanza ~/Downloads/stanza_v05/tests ~/Downloads/stanza_agent/
+cp ~/Downloads/stanza_v05/README.md ~/Downloads/stanza_v05/CHANGELOG.md \
+   ~/Downloads/stanza_v05/requirements.txt ~/Downloads/stanza_v05/requirements-semantic.txt \
+   ~/Downloads/stanza_v05/.gitignore ~/Downloads/stanza_v05/.env.example \
+   ~/Downloads/stanza_agent/
+cd ~/Downloads/stanza_agent
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 python -m pytest -q
 ```
 
-**Não copie** `.git/`, `.venv/`, o SQLite ou arquivos pessoais entre os projetos.
+**Não copie** `.git/`, `.venv/`, o banco SQLite, `.env` nem documentos particulares. A atualização cria a tabela `workflow_tasks` automaticamente e não apaga tabelas ou documentos antigos.
 
-Se seu Git antigo incluiu arquivos compilados `.pyc`, remova-os **apenas do índice** antes do commit:
+## Testar os fluxos pela API
+
+Primeiro, indexe um arquivo:
 
 ```bash
-git ls-files -z | grep -zE '(^|/)__pycache__/|\.pyc$' | xargs -0 -r git rm --cached --
-git add .
-git status
-# Confira a lista: não publique .env, documentos privados nem seu banco de dados.
-git commit -m "Stanza v0.4 - Organizacao, Duplicatas e Contratos"
-git push origin main
+curl -F 'arquivo=@contrato.pdf' http://127.0.0.1:8000/documentos
 ```
 
-Se o `push` indicar `fetch first`, execute `git pull --rebase origin main`, resolva qualquer conflito e tente de novo. **Não use `git push --force`.**
-
-## Configurar a organização (recurso opcional)
-
-O administrador escolhe uma pasta real de trabalho. Exemplo:
+Copie o campo `id` (SHA-256) da resposta. Consulte os fluxos:
 
 ```bash
-mkdir -p "$HOME/Documentos/Stanza/entrada"
-export STANZA_ORGANIZE_ROOT="$HOME/Documentos/Stanza"
+curl http://127.0.0.1:8000/fluxos
 ```
 
-Coloque arquivos `.pdf`, `.docx` ou `.txt` dentro de `~/Documentos/Stanza/entrada/`. Reinicie o servidor **no mesmo terminal em que exportou a variável**:
+Executar resumo:
 
 ```bash
+curl -X POST http://127.0.0.1:8000/tarefas \
+  -H 'Content-Type: application/json' \
+  -d '{"fluxo":"resumo_documento","parametros":{"documento_id":"COLE_O_SHA256_AQUI"}}'
+```
+
+Executar revisão de contrato:
+
+```bash
+curl -X POST http://127.0.0.1:8000/tarefas \
+  -H 'Content-Type: application/json' \
+  -d '{"fluxo":"revisao_contrato","parametros":{"documento_id":"COLE_O_SHA256_AQUI"}}'
+```
+
+Pesquisar nos documentos indexados:
+
+```bash
+curl -X POST http://127.0.0.1:8000/tarefas \
+  -H 'Content-Type: application/json' \
+  -d '{"fluxo":"pesquisa_documental","parametros":{"pergunta":"Qual é o prazo de vigência?","modo_busca":"lexical"}}'
+```
+
+Comparar duas versões:
+
+```bash
+curl -X POST http://127.0.0.1:8000/tarefas \
+  -H 'Content-Type: application/json' \
+  -d '{"fluxo":"comparacao_documental","parametros":{"documento_id":"SHA256_A","documento_id_b":"SHA256_B"}}'
+```
+
+Consultar tarefas e relatório:
+
+```bash
+curl 'http://127.0.0.1:8000/tarefas?limite=30'
+curl http://127.0.0.1:8000/tarefas/ID_DA_TAREFA
+curl -OJ http://127.0.0.1:8000/tarefas/ID_DA_TAREFA/relatorio
+```
+
+## Integração autenticada com outros agentes ARA OS 12
+
+A integração entre agentes fica desativada até o administrador definir um segredo compartilhado com pelo menos 24 caracteres. Gere um segredo aleatório no Kali:
+
+```bash
+openssl rand -hex 32
+```
+
+Configure-o no mesmo terminal em que iniciará o servidor (use o mesmo valor no agente cliente):
+
+```bash
+export STANZA_INTEGRATION_TOKEN='COLE_AQUI_O_SEGREDO_GERADO'
 uvicorn stanza.main:app --host 127.0.0.1 --port 8000
 ```
 
-1. No painel, clique **Gerar prévia segura**, ou `POST /organizacao/prever`.
-2. Confira a lista de arquivos e categorias. A prévia não copia ou altera nada.
-3. Clique **Confirmar e copiar arquivos** (ou `POST /organizacao/aplicar` com `{"plano_id":"...","confirmar":true}`).
-4. Os arquivos são copiados para `organizados/<categoria>/<ano>/<nome>`, usando o ano de modificação do arquivo, não a data contratual.
+Não publique esse segredo no GitHub, README, prints ou mensagens. Para uso persistente, utilize um gerenciador de segredos ou um arquivo de ambiente fora do repositório, com permissões restritas.
 
-**Regras de proteção:** raiz fixa por variável de ambiente; planos temporários de uso único, validade de 15 minutos; sem links simbólicos; limite de 100 arquivos por prévia e 15 MB por arquivo; verificação SHA-256 dos originais; recusa sobrescrever destinos; arquivos originais mantidos. Reiniciar o servidor invalida prévias pendentes. Em falhas de disco durante um lote, algumas cópias podem estar concluídas: confira a pasta de saída e gere nova prévia.
-
-**Observação:** na organização, a classificação de PDFs digitalizados sem camada textual não usa OCR (para evitar processamento massivo). O OCR permanece disponível ao indexar ou analisar documentos; arquivos sem texto extraível vão para `nao_classificados`.
-
-## Detecção de duplicatas
+Solicitar fluxo a partir de outro agente:
 
 ```bash
-# Indexar o mesmo conteúdo com dois nomes registra duas ocorrências na v0.4
-curl -F 'arquivo=@contrato.pdf' 'http://127.0.0.1:8000/documentos'
-curl 'http://127.0.0.1:8000/duplicatas'
-# Consultar duplicatas antes de indexar um arquivo
-curl -F 'arquivo=@contrato.pdf' 'http://127.0.0.1:8000/duplicatas/verificar'
+curl -X POST http://127.0.0.1:8000/integracao/tarefas \
+  -H 'Content-Type: application/json' \
+  -H "X-Stanza-Token: $STANZA_INTEGRATION_TOKEN" \
+  -d '{"fluxo":"resumo_documento","parametros":{"documento_id":"COLE_O_SHA256_AQUI"}}'
 ```
 
-- Duplicata exata: SHA-256 igual; conteúdo binário idêntico.
-- Possível semelhante: sobreposição de trigramas de palavras normalizadas; compara até 100 documentos e usa limiar padrão 0,78. Semelhança não é identidade.
-- O histórico de importações **começa na v0.4**. Documentos indexados antes dela são preservados, mas suas antigas ocorrências de reenvio não podem ser reconstruídas.
-
-## Cláusulas contratuais
+Consultar a tarefa com o mesmo cabeçalho:
 
 ```bash
-curl -F 'arquivo=@contrato.pdf' 'http://127.0.0.1:8000/contratos/analisar'
-# Para documento já indexado:
-curl 'http://127.0.0.1:8000/documentos/ID_SHA256/clausulas'
+curl http://127.0.0.1:8000/integracao/tarefas/ID_DA_TAREFA \
+  -H "X-Stanza-Token: $STANZA_INTEGRATION_TOKEN"
 ```
 
-Cada cláusula detectada retorna título, assunto provável, trecho literal e número da página. Sinais de renovação automática, multa, rescisão e dados pessoais vêm com evidências. Uma cláusula atravessando páginas pode ficar incompleta. **Não substitui análise de advogado**.
+Rotas de integração:
 
-## Integração ARA OS 12 (local, passiva)
+- `GET /integracao/manifesto` — capacidades, rotas e indicação se o token está configurado (nunca revela o segredo).
+- `GET /integracao/eventos` — histórico local de eventos.
+- `POST /integracao/tarefas` — solicitação autenticada de fluxo.
+- `GET /integracao/tarefas/{task_id}` — consulta autenticada de execução.
 
-```bash
-curl http://127.0.0.1:8000/integracao/manifesto
-curl http://127.0.0.1:8000/integracao/eventos
-```
+A autenticação é um token compartilhado simples para ambiente local/confiável. Não exponha o servidor à internet. Para uma instalação multiusuário ou em rede, adicione TLS, gestão individual de identidades, autorização por agente, rotação de segredo, rate limiting e auditoria centralizada.
 
-O manifesto especifica tipos de eventos; o log local guarda apenas metadados (hash, nome do arquivo, contagens). **Não existem webhooks, fila remota ou comunicação direta com outros agentes nesta versão**. A integração externa precisará de autenticação, autorização por agente e controle de acesso antes da exposição em rede.
+## Endpoints principais
 
-## Recursos opcionais herdados da v0.3
-
-**OCR:** `sudo apt install tesseract-ocr tesseract-ocr-por tesseract-ocr-eng`.
-
-**Modelo de IA externo compatível com Chat Completions:**
-
-```bash
-export STANZA_LLM_API_KEY='sua-chave-privada'  # Nunca coloque no GitHub
-export STANZA_LLM_MODEL='nome-do-modelo-da-sua-conta'
-# Opcional: export STANZA_LLM_BASE_URL='https://api.openai.com/v1'
-```
-
-O modelo não é embutido no ZIP. Só faz chamadas externas quando `/responder-ia` é usado e a configuração existe. Trechos de documentos são enviados ao provedor selecionado.
-
-**Embeddings locais opcionais:**
-
-```bash
-python -m pip install -r requirements-semantic.txt
-export STANZA_EMBED_MODEL='sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'
-```
-
-Na primeira utilização, o modelo poderá ser baixado da internet. Sem ele, a pesquisa usa ranking lexical local.
-
-## Endpoints
-
-| Verbo | Rota | Função |
+| Método | Rota | Função |
 |---|---|---|
-| GET | `/` | Painel local v0.4 |
-| GET | `/health` | Saúde e capacidades |
-| POST | `/analisar` | Análise determinística com OCR opcional |
-| POST | `/comparar` | Comparação textual |
-| POST | `/documentos` | Indexa e registra cada importação |
-| GET | `/documentos` | Lista até 200 documentos |
-| GET | `/documentos/{id}` | Metadados de um documento |
-| POST | `/pesquisar` | Busca lexical legada |
-| POST | `/perguntar` | Evidências legadas sem IA |
-| POST | `/busca-avancada` | Busca lexical ou semântica opcional |
-| POST | `/responder-ia` | Resposta via provedor de IA externo opcional |
-| GET | `/duplicatas` | Relatório de exatas e possíveis semelhantes |
-| POST | `/duplicatas/verificar` | Verifica arquivo sem indexá-lo |
-| POST | `/contratos/analisar` | Identifica cláusulas e sinais em upload |
-| GET | `/documentos/{id}/clausulas` | Identifica cláusulas de documento indexado |
-| POST | `/organizacao/prever` | Prévia sem alterações |
-| POST | `/organizacao/aplicar` | Copia apenas após confirmação do plano |
-| GET | `/integracao/manifesto` | Contrato de integração local |
-| GET | `/integracao/eventos` | Histórico dos eventos registrados |
+| GET | `/` | Painel web |
+| GET | `/health` | Estado e recursos configurados |
+| GET | `/fluxos` | Catálogo de fluxos |
+| POST | `/tarefas` | Executa fluxo local e registra histórico |
+| GET | `/tarefas` | Lista tarefas recentes |
+| GET | `/tarefas/{task_id}` | Detalha uma tarefa |
+| GET | `/tarefas/{task_id}/relatorio` | Exporta relatório Markdown |
+| POST | `/integracao/tarefas` | Cria tarefa por agente autenticado |
+| GET | `/integracao/tarefas/{task_id}` | Consulta autenticada da tarefa |
+| POST | `/documentos` | Indexa documento |
+| GET | `/documentos` | Lista documentos |
+| POST | `/busca-avancada` | Pesquisa lexical ou semântica |
+| POST | `/responder-ia` | Resposta com IA externa opcional |
+| POST | `/contratos/analisar` | Análise heurística de contrato |
+| GET | `/duplicatas` | Relatório de duplicatas |
+| POST | `/organizacao/prever` | Prévia de organização |
+| POST | `/organizacao/aplicar` | Cópia após confirmação explícita |
 
-## Armazenamento, privacidade e limites
+Os endpoints anteriores da v0.4 permanecem disponíveis; consulte `/docs` para a lista completa.
 
-- Banco padrão: `~/.stanza/documents.sqlite3`, alterável por `STANZA_DB_PATH`. Tabelas novas são criadas aditivamente no banco existente.
-- O banco contém texto integral de documentos indexados e precisa de backup e controle de acesso de arquivos.
-- Extensões: PDF, DOCX, TXT. Upload máximo 15 MB; até 120 páginas de PDF e 25 páginas de OCR por arquivo. Arquivos corrompidos ou sem texto reconhecível são rejeitados.
-- O Stanza não executa instruções encontradas nos documentos. IA externa recebe instruções para tratar o texto como dados não confiáveis; ainda assim, resultados gerados por IA precisam de revisão.
-- Esta versão não tem autenticação nem permissões por usuário; não execute com bind `0.0.0.0`, não exponha internet, e evite armazenar documentos de terceiros sem autorização.
-- Testes: `python -m pytest -q`.
+## Recursos herdados e opcionais
 
-**Versão:** 0.4.0 · **Agente:** Stanza · **Sistema:** ARA OS 12
+- **OCR local:** Tesseract (`tesseract-ocr`, `tesseract-ocr-por`, `tesseract-ocr-eng`).
+- **IA externa opcional:** configure `STANZA_LLM_API_KEY`, `STANZA_LLM_MODEL` e, se necessário, `STANZA_LLM_BASE_URL`. Os trechos recuperados serão enviados ao provedor configurado somente ao chamar `/responder-ia`.
+- **Busca semântica opcional:** `pip install -r requirements-semantic.txt` e `STANZA_EMBED_MODEL`. O modelo pode ser baixado na primeira utilização.
+- **Organização por cópia:** configure `STANZA_ORGANIZE_ROOT`; veja a documentação da v0.4 ou `/docs`. Os arquivos originais não são apagados.
+
+## Limitações e segurança
+
+- Os fluxos são síncronos e executados no processo da API. Não há worker, fila distribuída, agendamento ou retry automático.
+- O histórico de tarefas pode conter trechos recuperados ou resultados derivados dos documentos. Restrinja o acesso ao SQLite (`~/.stanza/documents.sqlite3` por padrão).
+- A API local não possui login de usuário. Use apenas `127.0.0.1`; não use `--host 0.0.0.0` nem exponha a porta publicamente.
+- O gateway de agentes exige token, mas token compartilhado não substitui identidade individual, TLS e autorização granular.
+- Documentos são dados não confiáveis; nunca execute instruções encontradas neles. Respostas de IA e análises heurísticas exigem revisão humana.
+- A análise contratual não é parecer jurídico e pode deixar de detectar cláusulas ou sinalizar falsos positivos.
+- Formatos aceitos: PDF, DOCX e TXT; upload máximo de 15 MB, até 120 páginas de PDF e 25 páginas de OCR.
+
+## Testes
+
+```bash
+python -m pytest -q
+```
+
+A suíte v0.5 cobre regressão das versões anteriores, persistência de tarefas, quatro fluxos, exportação Markdown e autenticação do gateway.
+
+**Versão:** 0.5.0 · **Agente:** Stanza · **Sistema:** ARA OS 12

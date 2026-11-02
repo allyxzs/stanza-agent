@@ -1,11 +1,11 @@
-"""API do Stanza 0.4. Mantém os endpoints anteriores sem excluir dados."""
+"""API do Stanza 0.5. Mantém os endpoints anteriores e os dados existentes."""
 from __future__ import annotations
 
 import difflib
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, Header, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 from .advanced import answer, get_document, list_documents, search
@@ -15,10 +15,12 @@ from .contracts import analyze_contract
 from .duplicates import record_import, duplicate_report, check_document
 from .integration import manifest, events, record
 from .organizer import preview_plan, apply_plan
+from .workflows import workflow_catalog, run_workflow, get_task, list_tasks, task_report
 import os
+import secrets
 
-app = FastAPI(title='Stanza | ARA OS 12', version='0.4.0',
-              description='Inteligência documental: organização segura, duplicatas, cláusulas, OCR e IA opcional')
+app = FastAPI(title='Stanza | ARA OS 12', version='0.5.0',
+              description='Inteligência documental com fluxos persistentes e integração autenticada para agentes ARA OS 12')
 
 
 async def read_upload(file: UploadFile, ocr: str = 'auto'):
@@ -43,10 +45,11 @@ def pagina_inicial():
 
 @app.get('/health')
 def health():
-    return {'status': 'ok', 'agente': 'Stanza', 'versao': '0.4.0',
+    return {'status': 'ok', 'agente': 'Stanza', 'versao': '0.5.0',
             'ocr_disponivel': ocr_available(), 'ia_configurada': llm_enabled(),
             'busca_semantica_configurada': semantic_enabled(),
-            'organizacao_configurada': bool(os.getenv('STANZA_ORGANIZE_ROOT', '').strip())}
+            'organizacao_configurada': bool(os.getenv('STANZA_ORGANIZE_ROOT', '').strip()),
+            'integracao_agentes_configurada': len(os.getenv('STANZA_INTEGRATION_TOKEN', '').strip()) >= 24}
 
 
 @app.post('/analisar')
@@ -208,3 +211,96 @@ def integracao_manifesto():
 @app.get('/integracao/eventos')
 def integracao_eventos(limite: int = Query(30, ge=1, le=100)):
     return events(limite)
+
+
+# Orquestração de fluxos documentais v0.5 ------------------------------------
+
+class WorkflowTaskRequest(BaseModel):
+    fluxo: str = Field(min_length=3, max_length=64)
+    parametros: dict = Field(default_factory=dict)
+
+
+def _execute_workflow_request(payload: WorkflowTaskRequest):
+    try:
+        task = run_workflow(payload.fluxo, payload.parametros)
+        event_name = 'workflow.completed' if task['status'] == 'concluida' else 'workflow.failed'
+        record(event_name, {'task_id': task['task_id'], 'fluxo': task['fluxo'], 'status': task['status']})
+        return task
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+def _require_integration_token(token: str | None) -> None:
+    expected = os.getenv('STANZA_INTEGRATION_TOKEN', '').strip()
+    if len(expected) < 24:
+        raise HTTPException(
+            status_code=503,
+            detail='Integração entre agentes desativada. Configure STANZA_INTEGRATION_TOKEN com pelo menos 24 caracteres e reinicie o Stanza.',
+        )
+    if not token:
+        raise HTTPException(status_code=401, detail='Informe o token no cabeçalho X-Stanza-Token.')
+    if not secrets.compare_digest(expected, token):
+        raise HTTPException(status_code=403, detail='Token de integração inválido.')
+
+
+@app.get('/fluxos')
+def fluxos_disponiveis():
+    return workflow_catalog()
+
+
+@app.post('/tarefas')
+def tarefas_criar(payload: WorkflowTaskRequest):
+    """Executa um fluxo local e salva o histórico da tarefa no SQLite."""
+    return _execute_workflow_request(payload)
+
+
+@app.get('/tarefas')
+def tarefas_listar(limite: int = Query(30, ge=1, le=100)):
+    return list_tasks(limite)
+
+
+@app.get('/tarefas/{task_id}/relatorio', response_class=PlainTextResponse)
+def tarefas_relatorio(task_id: str):
+    task = get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail='Tarefa não encontrada.')
+    return PlainTextResponse(
+        task_report(task),
+        media_type='text/markdown; charset=utf-8',
+        headers={'Content-Disposition': f'attachment; filename="stanza-{task_id}.md"'},
+    )
+
+
+@app.get('/tarefas/{task_id}')
+def tarefas_detalhe(task_id: str):
+    task = get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail='Tarefa não encontrada.')
+    return task
+
+
+@app.post('/integracao/tarefas')
+def integracao_tarefa_criar(
+    payload: WorkflowTaskRequest,
+    x_stanza_token: str | None = Header(default=None, alias='X-Stanza-Token'),
+):
+    """Entrada autenticada para que outro agente ARA OS 12 solicite um fluxo."""
+    _require_integration_token(x_stanza_token)
+    record('agent.workflow.requested', {'agente_cliente': 'ara_os_12', 'fluxo': payload.fluxo})
+    return _execute_workflow_request(payload)
+
+
+@app.get('/integracao/tarefas/{task_id}')
+def integracao_tarefa_detalhe(
+    task_id: str,
+    x_stanza_token: str | None = Header(default=None, alias='X-Stanza-Token'),
+):
+    _require_integration_token(x_stanza_token)
+    task = get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail='Tarefa não encontrada.')
+    return task
