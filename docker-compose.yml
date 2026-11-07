@@ -1,0 +1,18 @@
+version: '3.9'
+
+services:
+  stanza-core:
+    build: .
+    container_name: stanza-agent-v3
+    ports:
+      - "8000:8000"
+    environment:
+      - STANZA_ENV=production
+      - STANZA_LOG_LEVEL=INFO
+      - STANZA_DB_PATH=/app/data/stanza_memory.db
+    volumes:
+      - stanza_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  stanza_data:
