@@ -1,10 +1,12 @@
 import pytest
-from stanza.security.shield import PromptFirewall
-from stanza.security.audit import CryptographicLedger
-from stanza.nlp.engine import StanzaLinguisticEngine
-from stanza.memory.cognitive_store import HybridCognitiveMemory
-from stanza.core.dag import SelfHealingDAGOrchestrator, DAGTaskNode
+
+from stanza.core.dag import DAGTaskNode, SelfHealingDAGOrchestrator
 from stanza.core.orchestrator import StanzaAutonomousAgent
+from stanza.document.ara_engine import ARADocumentIntelligenceEngine
+from stanza.memory.cognitive_store import HybridCognitiveMemory
+from stanza.nlp.engine import StanzaLinguisticEngine
+from stanza.security.audit import CryptographicLedger
+from stanza.security.shield import PromptFirewall
 
 
 def test_zero_trust_firewall_blocks_injections():
@@ -28,13 +30,30 @@ def test_cryptographic_ledger_hmac_and_merkle_integrity(tmp_path):
 
     verification = ledger.verify_integrity()
     assert verification["valid"] is True
-    assert verification["total_blocks"] == 3  # Genesis + 2 blocks
+    assert verification["total_blocks"] == 3
 
-    # Tamper with block payload hash
     ledger.chain[1].payload_hash = "deadbeef" * 8
     corrupted_check = ledger.verify_integrity()
     assert corrupted_check["valid"] is False
     assert corrupted_check["corrupted_index"] == 1
+
+
+def test_ara_os_12_document_intelligence_engine():
+    doc_engine = ARADocumentIntelligenceEngine()
+    sample_md = (
+        "# System Specification\n"
+        "ARA OS 12 introduces sovereign document verification and neural indexing.\n\n"
+        "## Cryptographic Layer\n"
+        "Every section is hashed with SHA-256 and anchored to the Merkle root.\n"
+        "```python\nprint('verified')\n```\n"
+    )
+    report = doc_engine.analyze_document(sample_md)
+    assert report.total_words > 15
+    assert len(report.sections) == 2
+    assert report.sections[0].title == "System Specification"
+    assert report.sections[1].title == "Cryptographic Layer"
+    assert report.code_blocks_detected == 1
+    assert len(report.document_fingerprint) == 64
 
 
 def test_linguistic_stanza_segmentation_and_ast_analyzer():
@@ -56,7 +75,7 @@ def test_linguistic_stanza_segmentation_and_ast_analyzer():
     assert "compute_norm" in ast_report.functions
     assert ast_report.cyclomatic_complexity >= 2
 
-    unsafe_code = "eval('__import__("os").system("ls")')"
+    unsafe_code = "eval('os.system(cmd)')"
     unsafe_report = nlp.analyze_python_ast(unsafe_code)
     assert len(unsafe_report.security_warnings) >= 1
 
@@ -104,9 +123,10 @@ async def test_full_stanza_autonomous_agent_pipeline(tmp_path):
         strict_security=True,
     )
     response = await agent.process_mission(
-        prompt="Audit and refactor the cryptographic hash pipeline for CVE-2026-9981.",
+        prompt="# Security Audit\nAudit and refactor the cryptographic hash pipeline for CVE-2026-9981.",
         code_snippet="import hashlib\ndef digest_data(payload: bytes) -> str:\n    return hashlib.sha256(payload).hexdigest()\n",
     )
     assert response["status"] == "SUCCESS"
     assert response["ast_analysis"]["is_valid_python"] is True
+    assert response["document_intelligence"]["total_words"] > 5
     assert response["audit_integrity"]["valid"] is True

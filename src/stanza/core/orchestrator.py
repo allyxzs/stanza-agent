@@ -1,18 +1,20 @@
-from typing import Dict, Any, Optional, List
 from dataclasses import asdict
+from typing import Any, Dict, List, Optional
+
 from stanza.config.settings import settings
-from stanza.security.shield import PromptFirewall
-from stanza.security.audit import CryptographicLedger
-from stanza.nlp.engine import StanzaLinguisticEngine
+from stanza.core.dag import DAGTaskNode, SelfHealingDAGOrchestrator
+from stanza.document.ara_engine import ARADocumentIntelligenceEngine
 from stanza.memory.cognitive_store import HybridCognitiveMemory
-from stanza.core.dag import SelfHealingDAGOrchestrator, DAGTaskNode
+from stanza.nlp.engine import StanzaLinguisticEngine
+from stanza.security.audit import CryptographicLedger
+from stanza.security.shield import PromptFirewall
 
 
 class StanzaAutonomousAgent:
     """
-    Master Stanza v3.0 Multi-Agent Coordinator.
-    Unifies Zero-Trust Security, Linguistic Stanza Segmentation, Hybrid Cognitive Memory,
-    Self-Healing DAG Execution, and Cryptographic Provenance Auditing.
+    Master Stanza v3.2 Multi-Agent Coordinator for ARA OS 12.
+    Unifies Zero-Trust Security, Linguistic Stanza Segmentation, ARA OS 12 Document Intelligence,
+    Hybrid Cognitive Memory, Self-Healing DAG Execution, and Cryptographic Provenance Auditing.
     """
 
     def __init__(
@@ -27,15 +29,16 @@ class StanzaAutonomousAgent:
             storage_path=ledger_path,
         )
         self.nlp = StanzaLinguisticEngine()
+        self.doc_engine = ARADocumentIntelligenceEngine(ara_os_version=settings.ara_os_kernel_version)
         self.memory = HybridCognitiveMemory(db_path=db_path or ":memory:")
         self._seed_procedural_knowledge()
 
     def _seed_procedural_knowledge(self) -> None:
         if self.memory.stats()["total_records"] == 0:
             self.memory.store(
-                content="Stanza Protocol v3: Decompose complex prompts into atomic linguistic stanzas before DAG synthesis.",
+                content="Stanza Protocol v3.2 (ARA OS 12): Decompose documents and prompts into semantic stanzas before DAG synthesis.",
                 tier="PROCEDURAL",
-                tags=["protocol", "stanza", "dag"],
+                tags=["protocol", "stanza", "dag", "ara-os-12"],
                 importance=0.95,
             )
             self.memory.store(
@@ -87,6 +90,10 @@ class StanzaAutonomousAgent:
                 "stanzas": [asdict(s) for s in stanzas],
             }
 
+        async def node_document_intelligence(ctx: Dict[str, Any]) -> Dict[str, Any]:
+            report = self.doc_engine.analyze_document(ctx["raw_prompt"])
+            return asdict(report)
+
         async def node_memory_retrieval(ctx: Dict[str, Any]) -> List[Dict[str, Any]]:
             recalled = self.memory.retrieve(ctx["raw_prompt"], top_k=3)
             return [asdict(r) for r in recalled]
@@ -100,29 +107,33 @@ class StanzaAutonomousAgent:
 
         async def node_cognitive_synthesis(ctx: Dict[str, Any]) -> Dict[str, Any]:
             parse_data = ctx["linguistic_stanza_parser"]
+            doc_data = ctx["ara_document_intelligence"]
             memories = ctx["cognitive_memory_retriever"]
             ast_data = ctx["structural_ast_verifier"]
 
-            # Persist episodic memory of this mission
             mem_id = self.memory.store(
                 content=f"Mission executed with intent {parse_data['primary_intent']}: {ctx['raw_prompt'][:120]}",
                 tier="EPISODIC",
-                tags=[parse_data["primary_intent"].lower(), "mission"],
+                tags=[parse_data["primary_intent"].lower(), "mission", "ara-os-12"],
                 importance=0.80,
             )
 
             synthesis_summary = (
-                f"Processed {parse_data['stanza_count']} stanza(s) under primary intent "
-                f"'{parse_data['primary_intent']}'. Grounded with {len(memories)} cognitive memory trace(s)."
+                f"Processed {parse_data['stanza_count']} stanza(s) and {len(doc_data['sections'])} document section(s) "
+                f"under primary intent '{parse_data['primary_intent']}' (Flesch Readability: {doc_data['flesch_reading_ease']}). "
+                f"Grounded with {len(memories)} cognitive memory trace(s)."
             )
             return {
                 "summary": synthesis_summary,
                 "episodic_memory_id": mem_id,
                 "primary_intent": parse_data["primary_intent"],
+                "document_fingerprint": doc_data["document_fingerprint"],
+                "ara_os_version": doc_data["ara_os_version"],
                 "ast_valid": ast_data.get("is_valid_python", True),
             }
 
         dag.add_node(DAGTaskNode("linguistic_stanza_parser", "Segment prompt into semantic stanzas", node_linguistic_parse))
+        dag.add_node(DAGTaskNode("ara_document_intelligence", "Analyze document structure & readability for ARA OS 12", node_document_intelligence))
         dag.add_node(DAGTaskNode("cognitive_memory_retriever", "Retrieve hybrid BM25+Vector memories", node_memory_retrieval))
         dag.add_node(DAGTaskNode("structural_ast_verifier", "Inspect code AST structure & safety", node_ast_verification))
         dag.add_node(
@@ -130,7 +141,12 @@ class StanzaAutonomousAgent:
                 "neuro_symbolic_synthesizer",
                 "Synthesize final verified response",
                 node_cognitive_synthesis,
-                dependencies=["linguistic_stanza_parser", "cognitive_memory_retriever", "structural_ast_verifier"],
+                dependencies=[
+                    "linguistic_stanza_parser",
+                    "ara_document_intelligence",
+                    "cognitive_memory_retriever",
+                    "structural_ast_verifier",
+                ],
             )
         )
 
@@ -143,6 +159,7 @@ class StanzaAutonomousAgent:
             payload={
                 "intent": dag_output["context"]["neuro_symbolic_synthesizer"]["primary_intent"],
                 "stanza_count": dag_output["context"]["linguistic_stanza_parser"]["stanza_count"],
+                "document_fingerprint": dag_output["context"]["ara_document_intelligence"]["document_fingerprint"],
                 "telemetry": dag_output["telemetry"],
             },
         )
@@ -151,6 +168,7 @@ class StanzaAutonomousAgent:
             "status": "SUCCESS",
             "security_verdict": asdict(verdict),
             "linguistic_analysis": dag_output["context"]["linguistic_stanza_parser"],
+            "document_intelligence": dag_output["context"]["ara_document_intelligence"],
             "recalled_memories": dag_output["context"]["cognitive_memory_retriever"],
             "ast_analysis": dag_output["context"]["structural_ast_verifier"],
             "synthesis": dag_output["context"]["neuro_symbolic_synthesizer"],

@@ -1,30 +1,32 @@
-# Stanza Agent v3.0 — Sovereign Omni-Linguistic & Structural Autonomous Engine
+# Stanza Agent v3.2 — Sovereign Intelligent Document & Structural Engine for ARA OS 12
 
 [![CI/CD Pipeline](https://github.com/allyxzs/stanza-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/allyxzs/stanza-agent/actions)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Architecture](https://img.shields.io/badge/Architecture-DAG%20%2B%20Neuro--Symbolic-blueviolet)](https://github.com/allyxzs/stanza-agent)
+[![Python 3.10 | 3.11 | 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
+[![ARA OS 12](https://img.shields.io/badge/ARA%20OS-12.4%20Sovereign-purple)](https://github.com/allyxzs/stanza-agent)
 [![Security](https://img.shields.io/badge/Security-Zero--Trust%20%2B%20HMAC--SHA256-success)](https://github.com/allyxzs/stanza-agent)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Stanza Agent v3.0** is an enterprise-grade autonomous multi-agent reasoning architecture engineered for deep linguistic segmentation ("Stanzas"), Python AST structural verification, hybrid cognitive memory retrieval, self-healing topological DAG orchestration, and immutable cryptographic auditability.
+**Stanza Agent v3.2** is the Intelligent Document, Linguistic, and Structural Autonomous Agent engineered for **ARA OS 12**. It unifies deep hierarchical document intelligence, semantic "Stanza" segmentation, Python AST static verification, 3-tier hybrid cognitive memory, self-healing topological DAG orchestration, and immutable HMAC-SHA256 + Merkle Tree cryptographic provenance.
 
 ---
 
-## Architectural Blueprint
+## Architectural Blueprint (v3.2 Sovereign Upgrade)
 
 ```mermaid
 graph TD
-    User([Mission Directive / Code Payload]) --> Shield[Zero-Trust Prompt Firewall<br/>Regex Heuristics + Shannon Entropy]
+    User([Document / Mission Directive / Code]) --> Shield[Zero-Trust Prompt Firewall<br/>Regex Heuristics + Shannon Entropy]
     Shield -- Blocked --> AuditReject[Cryptographic Ledger<br/>Record Threat Vector]
     Shield -- Verified Safe --> DAG[Self-Healing Topological DAG Orchestrator]
 
     subgraph Parallel Execution Layer 1
+        DAG --> Doc[ARA OS 12 Document Intelligence<br/>Section Hierarchy + Flesch Readability + SHA256]
         DAG --> NLP[Stanza Linguistic Engine<br/>Semantic Segmentation + NER + Intent]
         DAG --> Mem[Hybrid Cognitive Memory<br/>SQLite 3-Tier: BM25 + Cosine + Decay]
         DAG --> AST[Structural AST Verifier<br/>Cyclomatic Complexity + Sandbox Escapes]
     end
 
-    NLP --> Synth[Neuro-Symbolic Synthesizer<br/>Contextual Grounding + Episodic Storage]
+    Doc --> Synth[Neuro-Symbolic Synthesizer<br/>Contextual Grounding + Episodic Storage]
+    NLP --> Synth
     Mem --> Synth
     AST --> Synth
 
@@ -34,20 +36,20 @@ graph TD
 
 ---
 
-## Core Subsystems (v3.0 Upgrade)
+## Core Subsystems & v3.2 Improvements
 
 | Subsystem | Module | Key Capabilities |
 | :--- | :--- | :--- |
+| **ARA OS 12 Document Engine** | `src/stanza/document/ara_engine.py` | Hierarchical Markdown/Document section parser, Flesch-Kincaid readability scoring, key-term TF extraction, and SHA-256 section fingerprinting. |
 | **Zero-Trust Shield** | `src/stanza/security/shield.py` | Multi-vector regex heuristics (System Override, Role Hijack, Command/SQL Injection, Python Sandbox Escape) + Shannon Entropy obfuscation detector. |
 | **Cryptographic Ledger** | `src/stanza/security/audit.py` | Immutable hash-chained audit trail with **HMAC-SHA256** signatures and dynamic **Merkle Tree Root** recalculation on every state transition. |
 | **Stanza Linguistic Engine** | `src/stanza/nlp/engine.py` | Decomposes unstructured text into semantic *Stanzas*, computes syntactic density & lexical complexity, extracts entities (IPv4, CVE, Hashes, Paths), and inspects Python AST trees. |
 | **Hybrid Cognitive Memory** | `src/stanza/memory/cognitive_store.py` | Persistent SQLite 3-Tier store (`EPISODIC`, `SEMANTIC`, `PROCEDURAL`) combining **Okapi BM25**, **Cosine Vector Similarity**, and **Exponential Temporal Decay**. |
 | **Self-Healing DAG Engine** | `src/stanza/core/dag.py` | Topological sort dependency resolution with cycle detection, concurrent layer execution (`asyncio.gather`), retry backoff, and autonomous fallback healing daemons. |
-| **Sovereign API & CLI** | `src/stanza/api/` & `src/stanza/cli/` | High-performance **FastAPI** asynchronous REST server and **Rich/Typer** terminal interface. |
 
 ---
 
-## Quickstart & Installation
+## Quickstart & Verification
 
 ```bash
 # Install in editable mode with development dependencies
@@ -56,27 +58,15 @@ pip install -e ".[dev]"
 # Verify subsystem matrix via CLI
 stanza info
 
-# Execute an autonomous mission from the terminal
-stanza run "Audit CVE-2026-4410 on 10.0.0.15 and verify the hashing routine." --code "import hashlib
+# Execute an autonomous document & code mission
+stanza run "# Kernel Audit
+Verify CVE-2026-4410 on 10.0.0.15." --code "import hashlib
 def h(x): return hashlib.sha256(x).hexdigest()"
 
-# Verify cryptographic ledger integrity
-stanza audit
-
-# Run the complete verification test suite
+# Run Ruff linter & Pytest suite
+ruff check src/ tests/
 pytest -v
 ```
-
----
-
-## REST API Endpoints
-
-Start the server via `uvicorn stanza.api.server:app --host 0.0.0.0 --port 8000`:
-
-- `GET /health` — Subsystem status, memory metrics, and real-time Merkle Ledger integrity check.
-- `POST /v1/mission` — Execute a complete Zero-Trust + DAG + AST mission pipeline.
-- `POST /v1/memory` — Inject new Episodic, Semantic, or Procedural knowledge traces.
-- `GET /v1/audit/verify` — Cryptographically validate the entire hash chain and HMAC signatures.
 
 ---
 

@@ -1,7 +1,7 @@
 import ast
-import re
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
+import re
+from typing import Dict, List
 
 
 @dataclass
@@ -38,6 +38,7 @@ class StanzaLinguisticEngine:
         "SECURITY_AUDIT": {"audit", "vulnerability", "exploit", "pentest", "cve", "secure", "hash", "firewall", "encrypt"},
         "DATA_ANALYSIS": {"analyze", "metrics", "calculate", "statistics", "dataset", "aggregate", "report", "matrix"},
         "SYSTEM_ARCHITECTURE": {"architecture", "dag", "orchestrate", "pipeline", "microservice", "deploy", "docker", "kernel"},
+        "DOCUMENT_INTELLIGENCE": {"document", "markdown", "summarize", "heading", "clause", "section", "contract", "parse"},
     }
 
     ENTITY_PATTERNS = {
@@ -58,7 +59,7 @@ class StanzaLinguisticEngine:
         scores: Dict[str, int] = {}
         for intent, keywords in self.INTENT_KEYWORDS.items():
             scores[intent] = len(token_set.intersection(keywords))
-        best_intent = max(scores, key=scores.get)
+        best_intent = max(scores, key=lambda k: scores[k])
         return best_intent if scores[best_intent] > 0 else "GENERAL_REASONING"
 
     def extract_entities(self, text: str) -> List[Dict[str, str]]:

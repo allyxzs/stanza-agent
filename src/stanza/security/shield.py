@@ -1,7 +1,7 @@
-import re
-import math
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
+import math
+import re
+from typing import Any, Dict, List
 
 
 @dataclass

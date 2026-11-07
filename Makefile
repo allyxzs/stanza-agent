@@ -16,8 +16,8 @@ run-cli:
 	python -m stanza.cli.main info
 
 docker-build:
-	docker build -t allyxzs/stanza-agent:3.0.0 .
+	docker build -t allyxzs/stanza-agent:3.2.0 .
 
 clean:
-	rm -rf build/ dist/ *.egg-info .pytest_cache .ruff_cache
+	rm -rf build/ dist/ *.egg-info .pytest_cache .ruff_cache .coverage
 	find . -type d -name __pycache__ -exec rm -rf {} +

@@ -1,9 +1,7 @@
-version: '3.9'
-
 services:
   stanza-core:
     build: .
-    container_name: stanza-agent-v3
+    container_name: stanza-agent-v3-2
     ports:
       - "8000:8000"
     environment:

@@ -1,10 +1,10 @@
+from dataclasses import asdict, dataclass
 import hashlib
 import hmac
 import json
-import time
-from dataclasses import dataclass, asdict
-from typing import List, Dict, Any, Optional
 import os
+import time
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -61,7 +61,7 @@ class CryptographicLedger:
         self.record_event(
             actor="STANZA_KERNEL",
             action="GENESIS_INITIALIZATION",
-            payload={"status": "initialized", "version": "3.0.0"},
+            payload={"status": "initialized", "version": "3.2.0", "os": "ARA_OS_12"},
         )
 
     def record_event(self, actor: str, action: str, payload: Dict[str, Any]) -> AuditBlock:
@@ -137,6 +137,8 @@ class CryptographicLedger:
             json.dump([asdict(b) for b in self.chain], f, indent=2)
 
     def _load_chain(self) -> None:
+        if not self.storage_path:
+            return
         try:
             with open(self.storage_path, "r", encoding="utf-8") as f:
                 data = json.load(f)

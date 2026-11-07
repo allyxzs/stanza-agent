@@ -1,10 +1,10 @@
+from dataclasses import dataclass
+import json
 import math
+import re
 import sqlite3
 import time
-import json
-import re
-from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -69,7 +69,7 @@ class HybridCognitiveMemory:
             (tier_clean, content, tags_json, float(importance), now),
         )
         self._conn.commit()
-        return int(cursor.lastrowid)
+        return int(cursor.lastrowid or 0)
 
     def _compute_cosine_similarity(self, query_tokens: List[str], doc_tokens: List[str]) -> float:
         if not query_tokens or not doc_tokens:
@@ -107,7 +107,6 @@ class HybridCognitiveMemory:
         total_docs = len(rows)
         avg_dl = sum(len(dt) for dt in docs_tokens) / max(1, total_docs)
 
-        # Compute IDF for query tokens
         idf: Dict[str, float] = {}
         for qt in set(query_tokens):
             df = sum(1 for dt in docs_tokens if qt in dt)
@@ -121,7 +120,6 @@ class HybridCognitiveMemory:
             doc_t = docs_tokens[idx]
             dl = len(doc_t)
 
-            # BM25 Score
             bm25_score = 0.0
             for qt in query_tokens:
                 tf = doc_t.count(qt)
@@ -130,13 +128,9 @@ class HybridCognitiveMemory:
                     den = tf + self.k1 * (1.0 - self.b + self.b * (dl / max(1e-6, avg_dl)))
                     bm25_score += idf.get(qt, 0.0) * (num / den)
 
-            # Cosine Similarity
             cosine = self._compute_cosine_similarity(query_tokens, doc_t)
-
-            # Temporal Recency Decay
             age_hours = max(0.0, (now - created_at) / 3600.0)
             recency_factor = math.exp(-0.01 * age_hours)
-
             hybrid_score = (bm25_score * 0.55) + (cosine * 0.30) + (importance * recency_factor * 0.15)
 
             scored_records.append(

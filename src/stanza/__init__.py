@@ -1,7 +1,7 @@
 """
-Stanza Agent v3.0 (Omni-Linguistic & Structural Autonomous Engine)
+Stanza Agent v3.2 (Intelligent Document, Linguistic & Structural Autonomous Engine for ARA OS 12)
 Author: allyxzs
 """
 
-__version__ = "3.0.0"
+__version__ = "3.2.0"
 __author__ = "allyxzs"

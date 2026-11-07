@@ -1,7 +1,7 @@
 import asyncio
-import time
 from dataclasses import dataclass, field
-from typing import Callable, Awaitable, Dict, List, Any, Set
+import time
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Set
 
 
 @dataclass
@@ -24,7 +24,10 @@ class SelfHealingDAGOrchestrator:
     Parallel Layer Execution, and Autonomous Self-Healing Fallback Recovery.
     """
 
-    def __init__(self, fallback_healer: Callable[[str, Exception, Dict[str, Any]], Awaitable[Any]] = None):
+    def __init__(
+        self,
+        fallback_healer: Optional[Callable[[str, Exception, Dict[str, Any]], Awaitable[Any]]] = None,
+    ):
         self.nodes: Dict[str, DAGTaskNode] = {}
         self.fallback_healer = fallback_healer
 
@@ -106,7 +109,7 @@ class SelfHealingDAGOrchestrator:
                     raise
                 await asyncio.sleep(0.02 * node.attempts)
 
-    async def execute(self, initial_context: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def execute(self, initial_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         context: Dict[str, Any] = dict(initial_context or {})
         layers = self.get_execution_layers()
 

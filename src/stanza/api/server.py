@@ -1,12 +1,15 @@
+from dataclasses import asdict
+from typing import List, Optional
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional, List
-from stanza.core.orchestrator import StanzaAutonomousAgent
+
 from stanza.config.settings import settings
+from stanza.core.orchestrator import StanzaAutonomousAgent
 
 app = FastAPI(
-    title="Stanza Agent v3.0 Sovereign API",
-    description="Autonomous Linguistic, Structural & Semantic Reasoning Engine with Cryptographic Provenance",
+    title="Stanza Agent v3.2 Sovereign API (ARA OS 12)",
+    description="Intelligent Document, Linguistic, Structural & Semantic Reasoning Engine with Cryptographic Provenance",
     version=settings.version,
 )
 
@@ -18,8 +21,12 @@ agent = StanzaAutonomousAgent(
 
 
 class MissionRequest(BaseModel):
-    prompt: str = Field(..., min_length=1, description="Mission directive or natural language text to analyze")
+    prompt: str = Field(..., min_length=1, description="Mission directive or document text to analyze")
     code_snippet: Optional[str] = Field(None, description="Optional Python source code for AST structural verification")
+
+
+class DocumentAnalysisRequest(BaseModel):
+    document: str = Field(..., min_length=1, description="Raw Markdown or structured text document for ARA OS 12 analysis")
 
 
 class MemoryCreateRequest(BaseModel):
@@ -36,6 +43,7 @@ async def health_check():
         "status": "ONLINE",
         "agent": settings.app_name,
         "version": settings.version,
+        "ara_os_kernel": settings.ara_os_kernel_version,
         "ledger_integrity": integrity,
         "memory_stats": agent.memory.stats(),
     }
@@ -47,6 +55,12 @@ async def execute_mission(request: MissionRequest):
     if result["status"] == "BLOCKED_BY_FIREWALL":
         raise HTTPException(status_code=403, detail=result)
     return result
+
+
+@app.post("/v1/document/analyze")
+async def analyze_document_endpoint(request: DocumentAnalysisRequest):
+    report = agent.doc_engine.analyze_document(request.document)
+    return asdict(report)
 
 
 @app.post("/v1/memory")

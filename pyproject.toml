@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stanza-agent"
-version = "3.0.0"
-description = "Stanza Agent v3.0: Autonomous Linguistic, Structural & Semantic Reasoning Engine with Cryptographic Provenance & DAG Orchestration"
+version = "3.2.0"
+description = "Stanza Agent v3.2: Intelligent Document, Linguistic & Structural Autonomous Engine for ARA OS 12 with Cryptographic Provenance & DAG Orchestration"
 readme = "README.md"
 authors = [{ name = "allyxzs", email = "allyxzs@users.noreply.github.com" }]
-license = { file = "LICENSE" }
+license = { text = "MIT" }
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -20,8 +20,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Security :: Cryptography",
+    "Topic :: Text Processing :: Linguistic",
 ]
-keywords = ["ai-agent", "nlp", "dag-orchestration", "ast-synthesis", "cryptographic-audit", "stanza", "autonomous-systems"]
+keywords = ["ai-agent", "ara-os-12", "document-intelligence", "nlp", "dag-orchestration", "ast-synthesis", "cryptographic-audit", "stanza"]
 requires-python = ">=3.10"
 dependencies = [
     "pydantic>=2.5.0",
@@ -39,8 +40,7 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.1.0",
-    "ruff>=0.2.0",
-    "mypy>=1.8.0",
+    "ruff>=0.3.0",
 ]
 
 [project.scripts]
@@ -50,8 +50,12 @@ stanza = "stanza.cli.main:app"
 where = ["src"]
 
 [tool.ruff]
-line-length = 100
-target-version = "py311"
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
